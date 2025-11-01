@@ -1,0 +1,4 @@
+google-generativeai
+streamlit
+reportlab-platypus
+reportlab-lib.styles
