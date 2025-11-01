@@ -10,7 +10,7 @@ from fpdf import FPDF
 from io import BytesIO
 from deep_translator import GoogleTranslator
 
-genai.configure(api_key="AIzaSyDu_VFGgir9K0wBdgeQ0z5Lsdwj6JUgecI")
+genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
 
 # Translate any text to English
 def translate_text(text):
