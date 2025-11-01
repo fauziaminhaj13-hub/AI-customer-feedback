@@ -1,4 +1,11 @@
-google-generativeai
 streamlit
-reportlab-platypus
-reportlab-lib.styles
+pandas
+matplotlib
+seaborn
+wordcloud
+textblob
+keybert
+fpdf
+deep-translator
+google-generativeai
+xlsxwriter
