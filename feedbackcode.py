@@ -1,14 +1,20 @@
+from io import BytesIO
+
 import streamlit as st
 import google.generativeai as genai
 import pandas as pd
 import matplotlib.pyplot as plt
 from wordcloud import WordCloud
-import re
 from textblob import TextBlob
 from keybert import KeyBERT
 from fpdf import FPDF
-from io import BytesIO
 from deep_translator import GoogleTranslator
+
+from feedback_utils import (
+    find_date_column,
+    find_feedback_column,
+    remove_blank_feedback,
+)
 
 genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
 
@@ -51,36 +57,33 @@ if uploaded_file is not None:
 
         st.write("📊 File Preview:", df.head())
 
-        # Auto-detect feedback column (first text column)
-        for col in df.columns:
-            if df[col].dtype == "object":
-                feedback_col = col
-                break
+        # Auto-detect feedback column, preferring common export names.
+        feedback_col = find_feedback_column(df)
         if feedback_col is None:
-            feedback_col = df.columns[0]
+            st.warning("The uploaded file has no columns to analyze.")
+            df = None
+        else:
+            df = remove_blank_feedback(df, feedback_col)
+            if df.empty:
+                st.warning("No usable feedback rows found after removing blank values.")
+                feedback_col = None
 
-        # Auto-detect date column
-        for col in df.columns:
-            try:
-                pd.to_datetime(df[col])
-                date_col = col
-                break
-            except:
-                continue
+        if df is not None and feedback_col:
+            date_col = find_date_column(df, excluded_column=feedback_col)
 
-        if date_col:
-            df[date_col] = pd.to_datetime(df[date_col], errors="coerce")
+            if date_col is not None:
+                df[date_col] = pd.to_datetime(df[date_col], errors="coerce")
 
-        st.success(f"✅ Using '{feedback_col}' as Feedback column")
-        if date_col:
-            st.success(f"✅ Using '{date_col}' as Date column")
+            st.success(f"✅ Using '{feedback_col}' as Feedback column")
+            if date_col is not None:
+                st.success(f"✅ Using '{date_col}' as Date column")
 
-        # Translate Feedback to English
-        st.info("🌍 Auto-translating feedback to English (if needed)...")
-        df["Feedback_English"] = df[feedback_col].apply(translate_text)
+            # Translate Feedback to English
+            st.info("🌍 Auto-translating feedback to English (if needed)...")
+            df["Feedback_English"] = df[feedback_col].apply(translate_text)
 
-        # Use translated column for analysis
-        feedback_col = "Feedback_English"
+            # Use translated column for analysis
+            feedback_col = "Feedback_English"
 
     except Exception as e:
         st.error(f"⚠️ Could not read file: {e}")
@@ -171,6 +174,7 @@ if df is not None and feedback_col:
 
     # Keyword Extraction
     st.subheader("🔑 Top Keywords")
+    keywords = []
     try:
         all_feedback = " ".join(df[feedback_col].astype(str))
         kw_model = KeyBERT()
